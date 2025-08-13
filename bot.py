@@ -152,7 +152,7 @@ async def support(cb: CallbackQuery):
 
 @dp.callback_query(F.data == "reviews")
 async def reviews(cb: CallbackQuery):
-    await cb.message.answer("Отзывы: ⭐⭐⭐⭐⭐ Всё супер! Спасибо за покупку!")
+    await cb.message.answer("Отзывы: ⭐⭐⭐⭐⭐ https://t.me/+hP-T1TuoybA4YjA6")
     await cb.answer()
 
 @dp.callback_query(F.data == "buy")
@@ -374,10 +374,46 @@ async def reject(cb: CallbackQuery):
     await cb.message.answer("Отклонено.")
     await cb.answer("Ок")
 
-# -------------------- ЗАПУСК --------------------
-async def main():
-    print("Bot started. Waiting for updates…")
+# -------------------- ЗАПУСК НА RENDER (polling + health server) --------------------
+import os, asyncio
+from aiohttp import web
+
+PORT = int(os.getenv("PORT", "10000"))  # на Render переменная уже есть
+
+# фоновая задача с polling
+_polling_task: asyncio.Task | None = None
+
+async def _run_polling():
+    print("Polling started…")
     await dp.start_polling(bot)
+
+async def on_app_start(app: web.Application):
+    global _polling_task
+    _polling_task = asyncio.create_task(_run_polling())
+
+async def on_app_stop(app: web.Application):
+    if _polling_task:
+        _polling_task.cancel()
+        try:
+            await _polling_task
+        except asyncio.CancelledError:
+            pass
+    await bot.session.close()
+
+async def health(request):
+    return web.Response(text="ok")
+
+async def main():
+    # маленький веб-сервер, чтобы Render видел порт
+    app = web.Application()
+    app.router.add_get("/", health)
+    app.router.add_get("/healthz", health)
+
+    app.on_startup.append(on_app_start)
+    app.on_shutdown.append(on_app_stop)
+
+    print(f"Running tiny HTTP server on 0.0.0.0:{PORT} and polling Telegram…")
+    await web._run_app(app, host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
     asyncio.run(main())
