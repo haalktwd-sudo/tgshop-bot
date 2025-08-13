@@ -58,8 +58,9 @@ def save_stock(stock):
 def main_menu():
     kb = InlineKeyboardBuilder()
     kb.button(text="🛒 Купить аккаунт", callback_data="buy")
-    kb.button(text="⭐ Отзывы", url=REVIEWS_URL)                     # ← сразу в канал отзывов
-    kb.button(text="💬 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}")  # ← сразу к @MeuzenFC
+    kb.button(text="⭐ Отзывы", url=REVIEWS_URL)                              # ← сразу в канал отзывов
+    kb.button(text="💬 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}")    # ← сразу к @MeuzenFC
+    kb.button(text="📘 Правила / FAQ", callback_data="faq")                   # ← новые правила/FAQ
     kb.adjust(1)
     return kb.as_markup()
 
@@ -152,6 +153,15 @@ async def whoami(message: Message):
 async def support_cmd(message: Message):
     await message.answer(f"По всем вопросам: @{SUPPORT_USERNAME}")
 
+@dp.message(Command("faq"))
+async def faq_cmd(message: Message):
+    await message.answer(get_faq_text(), reply_markup=main_menu())
+
+@dp.callback_query(F.data == "faq")
+async def faq_cb(cb: CallbackQuery):
+    await cb.message.answer(get_faq_text(), reply_markup=main_menu())
+    await cb.answer()
+
 @dp.callback_query(F.data == "buy")
 async def buy(cb: CallbackQuery):
     WAIT_CONTACT.add(cb.from_user.id)
@@ -235,7 +245,7 @@ async def qty_handlers(cb: CallbackQuery):
             await cb.message.edit_text(
                 "Выберите количество аккаунтов (1–100):\n"
                 f"Цена за 1: <b>{money(price)}</b>\n"
-                f"Итого за {q}: <b>{money(total)}</b>",
+                f"Итого за {q}: <b>{money(total)}\b>",
                 reply_markup=qty_kb(uid)
             )
         except TelegramBadRequest:
@@ -370,14 +380,39 @@ async def reject(cb: CallbackQuery):
     await cb.message.answer("Отклонено.")
     await cb.answer("Ок")
 
+# -------------------- ТЕКСТ ПРАВИЛ / FAQ --------------------
+def get_faq_text() -> str:
+    return (
+        "📘 <b>Правила / FAQ</b>\n\n"
+        "1) <b>Как купить?</b>\n"
+        "   • Нажмите «Купить аккаунт», отправьте @username для связи.\n"
+        "   • Выберите количество (1–100), получите реквизиты и сумму.\n"
+        "   • Пришлите скрин оплаты и нажмите «Я оплатил(а)».\n\n"
+        "2) <b>Сколько стоит?</b>\n"
+        f"   • Цена за 1 аккаунт: <b>{money(PRICE_PER_ACCOUNT)}</b>.\n"
+        "   • Итоговая сумма считается автоматически от выбранного количества.\n\n"
+        "3) <b>Как выдаётся товар?</b>\n"
+        "   • После подтверждения оплаты админом вы получите данные в ЛС бота.\n"
+        "   • Формат: <code>логин:пароль:+телефон</code>.\n\n"
+        "4) <b>Сроки</b>\n"
+        "   • Обычно подтверждение в течение 5–15 минут в рабочее время.\n\n"
+        "5) <b>Гарантии</b>\n"
+        "   • На момент выдачи данные валидные. Если есть вопросы — пишите в поддержку.\n\n"
+        "6) <b>Поддержка</b>\n"
+        f"   • @{SUPPORT_USERNAME}\n\n"
+        "7) <b>Важно</b>\n"
+        "   • Перед оплатой сверяйте сумму и комментарий к переводу (если указан).\n"
+        "   • Скриншот оплаты обязателен для ускорения подтверждения."
+    )
+
 # -------------------- ЗАПУСК НА RENDER (polling + health server) --------------------
-import os, asyncio
+import os as _os, asyncio as _asyncio
 from aiohttp import web
 
-PORT = int(os.getenv("PORT", "10000"))  # Render задаёт PORT автоматически
+PORT = int(_os.getenv("PORT", "10000"))  # Render задаёт PORT автоматически
 
 # фоновая задача с polling
-_polling_task: asyncio.Task | None = None
+_polling_task: _asyncio.Task | None = None
 
 async def _run_polling():
     print("Polling started…")
@@ -385,14 +420,14 @@ async def _run_polling():
 
 async def on_app_start(app: web.Application):
     global _polling_task
-    _polling_task = asyncio.create_task(_run_polling())
+    _polling_task = _asyncio.create_task(_run_polling())
 
 async def on_app_stop(app: web.Application):
     if _polling_task:
         _polling_task.cancel()
         try:
             await _polling_task
-        except asyncio.CancelledError:
+        except _asyncio.CancelledError:
             pass
     await bot.session.close()
 
@@ -412,4 +447,4 @@ async def main():
     await web._run_app(app, host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    _asyncio.run(main())
