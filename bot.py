@@ -20,20 +20,23 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(mes
 # -------------------- НАСТРОЙКИ --------------------
 BOT_TOKEN = "8217371794:AAHxN4QU5C6tj-8ynSwGnPUF7h-aC-HRWdg"
 
-# ✅ Теперь можно несколько админов. Я добавил оба твоих ID.
+# ✅ Можно несколько админов
 ALLOWED_ADMIN_IDS = {906779125, 6074106582}
 
-ADMIN_CHANNEL_ID = -1002632514549        # канал для подтверждений (копия также в ЛС админам)
-SUPPORT_USERNAME = "MeuzenFC"
+ADMIN_CHANNEL_ID = -1002632514549        # канал для подтверждений
+SUPPORT_USERNAME = "MeuzenFC"            # <- ваш логин поддержки
+
+# --- URL канала с отзывами ---
+REVIEWS_URL = os.getenv("REVIEWS_URL", "https://t.me/+hP-T1TuoybA4YjA6")
 
 # --- ЦЕНЫ ---
-CURRENCY = "₽"                            # "₽", "$", "€" и т.д.
+CURRENCY = "₽"
 PRICE_PER_ACCOUNT = Decimal("150.00")     # цена за 1 аккаунт
 
 # --- РЕКВИЗИТЫ ДЛЯ ПЕРЕВОДА НА КАРТУ ---
 CARD_NUMBER = "2200 7010 2345 6789"
 CARD_HOLDER = "Костышин С.Э"
-CARD_NOTE   = "Скриншот отправляй в бота!"   # комментарий к переводу (если не нужен — "")
+CARD_NOTE   = "Скриншот отправляй в бота!"   # комментарий к переводу (можно "")
 
 # -------------------- ИНИЦ --------------------
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
@@ -55,8 +58,8 @@ def save_stock(stock):
 def main_menu():
     kb = InlineKeyboardBuilder()
     kb.button(text="🛒 Купить аккаунт", callback_data="buy")
-    kb.button(text="⭐ Отзывы", callback_data="reviews")
-    kb.button(text="💬 Поддержка", callback_data="support")
+    kb.button(text="⭐ Отзывы", url=REVIEWS_URL)                     # ← сразу в канал отзывов
+    kb.button(text="💬 Поддержка", url=f"https://t.me/{SUPPORT_USERNAME}")  # ← сразу к @MeuzenFC
     kb.adjust(1)
     return kb.as_markup()
 
@@ -145,15 +148,9 @@ async def start(message: Message):
 async def whoami(message: Message):
     await message.answer(f"Ваш ID: <code>{message.from_user.id}</code>")
 
-@dp.callback_query(F.data == "support")
-async def support(cb: CallbackQuery):
-    await cb.message.answer(f"По всем вопросам: @{SUPPORT_USERNAME}")
-    await cb.answer()
-
-@dp.callback_query(F.data == "reviews")
-async def reviews(cb: CallbackQuery):
-    await cb.message.answer("Отзывы: ⭐⭐⭐⭐⭐ https://t.me/+hP-T1TuoybA4YjA6")
-    await cb.answer()
+@dp.message(Command("support"))
+async def support_cmd(message: Message):
+    await message.answer(f"По всем вопросам: @{SUPPORT_USERNAME}")
 
 @dp.callback_query(F.data == "buy")
 async def buy(cb: CallbackQuery):
@@ -291,7 +288,6 @@ async def paid_confirm(cb: CallbackQuery):
         "<b>Статус:</b> пользователь нажал «Я оплатил(а)»"
     )
 
-    # Карточка одним сообщением (фото + подпись + кнопки)
     # 1) Канал
     try:
         await bot.send_photo(
@@ -306,7 +302,7 @@ async def paid_confirm(cb: CallbackQuery):
     except Exception as e:
         logging.exception("Channel error (paid card): %s", e)
 
-    # 2) ЛС всем админам из списка
+    # 2) ЛС админам
     for admin_id in ALLOWED_ADMIN_IDS:
         try:
             await bot.send_photo(
@@ -378,7 +374,7 @@ async def reject(cb: CallbackQuery):
 import os, asyncio
 from aiohttp import web
 
-PORT = int(os.getenv("PORT", "10000"))  # на Render переменная уже есть
+PORT = int(os.getenv("PORT", "10000"))  # Render задаёт PORT автоматически
 
 # фоновая задача с polling
 _polling_task: asyncio.Task | None = None
