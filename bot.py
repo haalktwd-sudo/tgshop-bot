@@ -31,9 +31,9 @@ CURRENCY = "₽"                            # "₽", "$", "€" и т.д.
 PRICE_PER_ACCOUNT = Decimal("150.00")     # цена за 1 аккаунт
 
 # --- РЕКВИЗИТЫ ДЛЯ ПЕРЕВОДА НА КАРТУ ---
-CARD_NUMBER = "5559 4931 2345 6789"
-CARD_HOLDER = "IVAN IVANOV"
-CARD_NOTE   = "TGACC"   # комментарий к переводу (если не нужен — "")
+CARD_NUMBER = "2200 7010 2345 6789"
+CARD_HOLDER = "Костышин С.Э"
+CARD_NOTE   = "Скриншот отправляй в бота!"   # комментарий к переводу (если не нужен — "")
 
 # -------------------- ИНИЦ --------------------
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
